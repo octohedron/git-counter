@@ -54,7 +54,7 @@ MAX 621 TOTAL 6925
 
 - `-author` flag is optional and accepts regex (same as git), i.e. `-author="Name.*"`
 - Allows for many paths, passing the same flag, i.e. `-dir=path1 -dir=path2 ...`
-- Only supports folders (i.e. `-dir=path` flag) that have `.git` directories on them
+- Only supports folders (i.e. `-dir=path` flag) that have folders with `.git` directories on them
 
 ## Motivation
 
