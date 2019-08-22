@@ -95,7 +95,7 @@ func printOut(ti map[int]int) {
 	}
 	fmt.Println("MAX", max, "TOTAL", total)
 	for _, k := range keys {
-		line := fmt.Sprintf("%3v %4v ", k, ti[k])
+		line := fmt.Sprintf("%3v %5v ", k, ti[k])
 		for n := 0; float64(n) < math.Abs(float64(ti[k])/float64(max)*60); n++ {
 			line += "*"
 		}
