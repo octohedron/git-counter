@@ -95,8 +95,8 @@ func printOut(ti map[int]int) {
 	}
 	fmt.Println("MAX", max, "TOTAL", total)
 	for _, k := range keys {
-		line := fmt.Sprintf("%3v %5v ", k, ti[k])
-		for n := 0; float64(n) < math.Abs(float64(ti[k])/float64(max)*60); n++ {
+		line := fmt.Sprintf("%3v %7v ", k, ti[k])
+		for n := 0; float64(n) < math.Abs(float64(ti[k])/float64(max)*80); n++ {
 			line += "*"
 		}
 		fmt.Println(line)
@@ -114,7 +114,6 @@ func main() {
 			// Don't add this project
 			if f.Name() == "git-counter" {
 				continue
-
 			}
 			folders[v] = append(folders[v], v+"/"+f.Name())
 		}
