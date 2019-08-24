@@ -13,6 +13,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 )
 
 type dirT []string
@@ -104,6 +105,7 @@ func printOut(ti map[int]int) {
 }
 
 func main() {
+	start := time.Now()
 	// Folders that will be added
 	folders := make(map[string][]string)
 	// For each directory
@@ -130,4 +132,5 @@ func main() {
 		}
 	}
 	printOut(tots)
+	log.Printf("%s", time.Since(start))
 }
