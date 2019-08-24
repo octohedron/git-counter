@@ -70,13 +70,14 @@ func logPanic(err error) {
 	}
 }
 
-func addFolderCommits(outs *bytes.Buffer) {
+func addFolderCommits(outs *bytes.Buffer, c chan int) {
 	scanner := bufio.NewScanner(outs)
 	for scanner.Scan() {
 		v, err := strconv.Atoi(scanner.Text())
 		logPanic(err)
 		tots[v]++
 	}
+	c <- 1
 }
 
 func printOut(ti map[int]int) {
@@ -103,9 +104,20 @@ func printOut(ti map[int]int) {
 	}
 }
 
+func checkDir(dir string, c chan int) {
+	cmd := exec.Command("sh", "-c", "git --git-dir="+dir+"/.git log "+author+" --format='%ad' --date='format:%H'")
+	cmdOutput := &bytes.Buffer{}
+	cmd.Stdout = cmdOutput
+	printCommand(cmd)
+	err := cmd.Run()
+	printError(err)
+	go addFolderCommits(cmdOutput, c)
+}
+
 func main() {
 	// Folders that will be added
 	folders := make(map[string][]string)
+	projects := 0
 	// For each directory
 	for _, v := range dirS {
 		gitFolders, err := ioutil.ReadDir(v)
@@ -116,17 +128,20 @@ func main() {
 				continue
 			}
 			folders[v] = append(folders[v], v+"/"+f.Name())
+			projects++
 		}
 	}
+	c := make(chan int)
 	for _, folder := range folders {
 		for _, dir := range folder {
-			cmd := exec.Command("sh", "-c", "git --git-dir="+dir+"/.git log "+author+" --format='%ad' --date='format:%H'")
-			cmdOutput := &bytes.Buffer{}
-			cmd.Stdout = cmdOutput
-			printCommand(cmd)
-			err := cmd.Run()
-			printError(err)
-			addFolderCommits(cmdOutput)
+			go checkDir(dir, c)
+		}
+	}
+	completed := 0
+	for i := range c {
+		completed += i
+		if completed == projects {
+			break
 		}
 	}
 	printOut(tots)
