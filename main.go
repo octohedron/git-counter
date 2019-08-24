@@ -31,11 +31,15 @@ func (i *dirT) Set(value string) error {
 	return nil
 }
 
-func init() {
-	tots = make(map[int]int)
+func getMap() map[int]int {
+	t := make(map[int]int)
 	for i := 0; i < 24; i++ {
-		tots[i] = 0
+		t[i] = 0
 	}
+	return t
+}
+func init() {
+	tots = getMap()
 	flag.Var(&dirS, "dir", "directories")
 	flag.StringVar(&author, "author", "", "a string")
 	flag.Parse()
@@ -71,13 +75,15 @@ func logPanic(err error) {
 	}
 }
 
-func addFolderCommits(outs *bytes.Buffer) {
+func addFolderCommits(outs *bytes.Buffer) map[int]int {
 	scanner := bufio.NewScanner(outs)
+	r := getMap()
 	for scanner.Scan() {
 		v, err := strconv.Atoi(scanner.Text())
 		logPanic(err)
-		tots[v]++
+		r[v]++
 	}
+	return r
 }
 
 func printOut(ti map[int]int) {
@@ -104,10 +110,22 @@ func printOut(ti map[int]int) {
 	}
 }
 
+func checkDir(dir string, c chan map[int]int) {
+	cmd := exec.Command("sh", "-c", "git --git-dir="+dir+"/.git log "+author+" --format='%ad' --date='format:%H'")
+	cmdOutput := &bytes.Buffer{}
+	cmd.Stdout = cmdOutput
+	printCommand(cmd)
+	err := cmd.Run()
+	printError(err)
+	t := addFolderCommits(cmdOutput)
+	c <- t
+}
+
 func main() {
 	start := time.Now()
 	// Folders that will be added
 	folders := make(map[string][]string)
+	projects := 0
 	// For each directory
 	for _, v := range dirS {
 		gitFolders, err := ioutil.ReadDir(v)
@@ -118,17 +136,23 @@ func main() {
 				continue
 			}
 			folders[v] = append(folders[v], v+"/"+f.Name())
+			projects++
 		}
 	}
+	c := make(chan map[int]int)
 	for _, folder := range folders {
 		for _, dir := range folder {
-			cmd := exec.Command("sh", "-c", "git --git-dir="+dir+"/.git log "+author+" --format='%ad' --date='format:%H'")
-			cmdOutput := &bytes.Buffer{}
-			cmd.Stdout = cmdOutput
-			printCommand(cmd)
-			err := cmd.Run()
-			printError(err)
-			addFolderCommits(cmdOutput)
+			go checkDir(dir, c)
+		}
+	}
+	completed := 0
+	for t := range c {
+		for v, k := range t {
+			tots[v] += k
+		}
+		completed++
+		if completed == projects {
+			break
 		}
 	}
 	printOut(tots)
