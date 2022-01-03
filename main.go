@@ -24,7 +24,7 @@ const (
 
 type allDirectories []string
 
-type Directory struct {
+type directory struct {
 	path          string
 	gitCommand    string
 	dayilyCommits map[int]int
@@ -113,7 +113,7 @@ func logPanic(err error) {
 	}
 }
 
-func (d *Directory) addDirectoryCommits(outs *bytes.Buffer) {
+func (d *directory) addDirectoryCommits(outs *bytes.Buffer) {
 	scanner := bufio.NewScanner(outs)
 	for scanner.Scan() {
 		v, err := strconv.Atoi(scanner.Text())
@@ -122,8 +122,8 @@ func (d *Directory) addDirectoryCommits(outs *bytes.Buffer) {
 	}
 }
 
-func getDir(path string) Directory {
-	return Directory{
+func getDir(path string) directory {
+	return directory{
 		dayilyCommits: get24HourMap(),
 		path: fmt.Sprintf("git --git-dir=%s/.git log ", path) +
 			author + ` --format='%ad' --date='format:%H'`,
@@ -155,7 +155,7 @@ func showResults(results map[int]int) {
 	}
 }
 
-func (d *Directory) parseDir(c chan map[int]int) {
+func (d *directory) parseDir(c chan map[int]int) {
 	cmd := exec.Command("sh", "-c", d.gitCommand)
 	cmdOutput := &bytes.Buffer{}
 	cmd.Stdout = cmdOutput
@@ -169,7 +169,7 @@ func (d *Directory) parseDir(c chan map[int]int) {
 func main() {
 	start := time.Now()
 	// Folders that will be added
-	folders := make(map[string][]Directory)
+	folders := make(map[string][]directory)
 	projects := 0
 	// For each directory
 	for _, v := range flagDirectories {
