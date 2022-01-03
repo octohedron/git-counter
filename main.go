@@ -25,7 +25,6 @@ const (
 type allDirectories []string
 
 type directory struct {
-	path          string
 	gitCommand    string
 	dayilyCommits map[int]int
 }
@@ -125,7 +124,7 @@ func (d *directory) addDirectoryCommits(outs *bytes.Buffer) {
 func getDir(path string) directory {
 	return directory{
 		dayilyCommits: get24HourMap(),
-		path: fmt.Sprintf("git --git-dir=%s/.git log ", path) +
+		gitCommand: fmt.Sprintf("git --git-dir=%s/.git log ", path) +
 			author + ` --format='%ad' --date='format:%H'`,
 	}
 }
@@ -136,11 +135,11 @@ func showResults(results map[int]int) {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
-	maxCommits := float64(0)
+	maxCommits := 0
 	totalCommits := 0
 	for _, k := range keys {
-		if float64(results[k]) > maxCommits {
-			maxCommits = float64(results[k])
+		if results[k] > maxCommits {
+			maxCommits = results[k]
 		}
 		totalCommits += results[k]
 	}
