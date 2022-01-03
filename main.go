@@ -18,9 +18,21 @@ import (
 
 type dirT []string
 
-var tots map[int]int
-var dirS dirT
-var author string
+const usage = "=====================\nUSAGE\n" +
+	"# Allows many paths with the -dir flag\n" +
+	"> $ go run main.go -dir=/full/path1... -dir=/full/path2... " +
+	"-dir=/full/pathN...\n" +
+	"MORE EXAMPLES\n" +
+	"# With single path\n" +
+	"> $ go run main.go -dir=/home/user/go/src/github.com/user\n" +
+	"# With author\n" +
+	"> $ go run main.go -dir=/home/user/go/src/github.com/user -author='User.*'"
+
+var (
+	tots   map[int]int
+	dirS   dirT
+	author string
+)
 
 func (i *dirT) String() string {
 	return "A string"
@@ -38,19 +50,14 @@ func getMap() map[int]int {
 	}
 	return t
 }
+
 func init() {
 	tots = getMap()
 	flag.Var(&dirS, "dir", "directories")
 	flag.StringVar(&author, "author", "", "a string")
 	flag.Parse()
 	if len(dirS) < 1 {
-		fmt.Println("=====================")
-		fmt.Println("USAGE")
-		fmt.Println("> $ go run main.go -dir=/full/path1... -dir=/full/path2... -dir=/full/pathN... # Allows many paths")
-		log.Println("-author='name' # optional author")
-		fmt.Println("MORE EXAMPLES")
-		fmt.Println("> $ go run main.go -dir=/home/user/go/src/github.com/user # With single path")
-		fmt.Println("> $ go run main.go -dir=/home/user/go/src/github.com/user -author='User.*' # With author")
+		fmt.Println(usage)
 		os.Exit(0)
 	}
 	// add author to the git command if present
