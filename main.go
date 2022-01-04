@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	h "github.com/dustin/go-humanize"
 )
 
 const (
@@ -59,7 +61,7 @@ func (d *directory) addDirectoryCommits(outs *bytes.Buffer) {
 func getDir(path string) directory {
 	return directory{
 		dayilyCommits: get24HourMap(),
-		gitCommand: fmt.Sprintf("git --git-dir=%s/.git log ", path) +
+		gitCommand: fmt.Sprintf("git -C %s log ", path) +
 			author + ` --all --format='%ad' --date='format:%H'`,
 	}
 }
@@ -78,7 +80,8 @@ func showResults(results map[int]int) {
 		}
 		totalCommits += results[k]
 	}
-	fmt.Println("MAX", maxCommits, "TOTAL", totalCommits)
+	fmt.Println("MAX", h.Comma(int64(maxCommits)),
+		"TOTAL", h.Comma(int64(totalCommits)))
 	for _, k := range keys {
 		line := fmt.Sprintf("%3v %7v ", k, results[k])
 		for n := 0; float64(n) < math.Abs(
