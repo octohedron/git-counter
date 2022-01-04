@@ -30,6 +30,26 @@ var (
 	// Author is a global variable to avoid passing it to the
 	// getDir function
 	author string
+	// Colors for the terminal
+	colors = []string{
+		"\033[0m",  // Reset
+		"\033[1m",  // Bold
+		"\033[97m", // White
+		"\033[90m", // DarkGray
+		"\033[34m", // Blue
+		"\033[37m", // LightGray
+		"\033[94m", // LightBlue
+		"\033[36m", // Cyan
+		"\033[96m", // LightCyan
+		"\033[32m", // Green
+		"\033[92m", // LightGreen
+		"\033[35m", // Magenta
+		"\033[95m", // LightMagenta
+		"\033[33m", // Yellow
+		"\033[93m", // LightYellow
+		"\033[91m", // LightRed
+		"\033[31m", // Red
+	}
 )
 
 // Used for parsing the directory flags
@@ -76,6 +96,11 @@ func getDir(path string) *directory {
 	}
 }
 
+func getColorIndex(value int, maxValue int) int {
+	scale := (17 / float64(maxValue))
+	return int((float64(value) * scale) - 1)
+}
+
 // This will print the graph in the terminal after collecting the commits
 func showResults(results map[int]int) {
 	// For showing the results starting at 0 to 23h
@@ -95,11 +120,12 @@ func showResults(results map[int]int) {
 		"TOTAL", h.Comma(int64(totalCommits)))
 	for _, k := range keys {
 		line := fmt.Sprintf("%3v %7v ", k, results[k])
-		for n := 0; float64(n) < math.Abs(
+		line += colors[getColorIndex(results[k], maxCommits)]
+		for n := 0; float64(n) < math.Floor(
 			float64(results[k])/float64(maxCommits)*80); n++ {
 			line += "*"
 		}
-		fmt.Println(line)
+		fmt.Println(line + colors[0])
 	}
 }
 
