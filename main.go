@@ -18,7 +18,7 @@ import (
 )
 
 const (
-	// These are used for printing the instructions
+	// Used for printing the instructions
 	totalCols     = 60
 	padding       = 10
 	colsNoPadding = totalCols - (padding * 2)
@@ -27,21 +27,18 @@ const (
 var (
 	// Used for parsing the directory flags
 	flagDirectories allDirectories
-	// Author is a global variable to avoid passing it to the
-	// getDir function
-	author string
+	author          string
 	// Colors for the terminal
 	colors = []string{
 		"\033[0m",  // Reset
 		"\033[90m", // DarkGray
-		"\033[97m", // White
 		"\033[34m", // Blue
 		"\033[37m", // LightGray
 		"\033[94m", // LightBlue
 		"\033[36m", // Cyan
 		"\033[96m", // LightCyan
-		"\033[32m", // Green
 		"\033[92m", // LightGreen
+		"\033[32m", // Green
 		"\033[35m", // Magenta
 		"\033[95m", // LightMagenta
 		"\033[33m", // Yellow
@@ -85,7 +82,7 @@ func (d *directory) addDirectoryCommits(outs *bytes.Buffer) {
 	}
 }
 
-// getDir initializes a directory and returns a pointer
+// getDir initializes a directory and returns a pointer to it
 func getDir(path string) *directory {
 	return &directory{
 		hourlyCommits: get24HourMap(),
@@ -95,12 +92,7 @@ func getDir(path string) *directory {
 	}
 }
 
-func getColorIndex(value int, maxValue int) int {
-	scale := (16 / float64(maxValue))
-	return int((float64(value) * scale) - 1)
-}
-
-// This will print the graph in the terminal after collecting the commits
+// showResults will print the graph in the terminal after collecting the commits
 func showResults(results map[int]int) {
 	// For showing the results starting at 0 to 23h
 	var keys []int
@@ -122,7 +114,7 @@ func showResults(results map[int]int) {
 		line += colors[getColorIndex(results[k], maxCommits)]
 		for n := 0; float64(n) < math.Floor(
 			float64(results[k])/float64(maxCommits)*80); n++ {
-			line += "*"
+			line += "█"
 		}
 		fmt.Println(line + colors[0])
 	}

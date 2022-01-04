@@ -9,7 +9,7 @@ import (
 	"strings"
 )
 
-// Initialize a map if time of day to amount of commits
+// get24HourMap initializes a map if time of hour of day to amount of commits
 func get24HourMap() map[int]int {
 	t := make(map[int]int)
 	for i := 0; i < 24; i++ {
@@ -18,37 +18,52 @@ func get24HourMap() map[int]int {
 	return t
 }
 
-func getPad() string {
+// getPad returns padding
+func getPad(padding int) string {
 	return strings.Repeat("#", padding)
 }
 
+// printDoc prints a documentation line
 func printDoc(contents string, center bool) {
 	if center {
 		contents = fmt.Sprintf(
 			"%"+strconv.Itoa((padding*2)+len(contents)/2)+"s", contents)
 	}
 	fmt.Printf(
-		"%10s%-"+strconv.Itoa(colsNoPadding)+"s%s\n", getPad(), contents, getPad())
+		"%10s%-"+strconv.Itoa(colsNoPadding)+"s%s\n",
+		getPad(padding), contents, getPad(padding))
 }
 
+// printCommand prints a shell command
 func printCommand(cmd *exec.Cmd) {
 	fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
 }
 
+// logError prints an error on std err if present, with the path of the
+// directory
 func logError(err error, d *directory) {
 	if err != nil {
 		os.Stderr.WriteString(fmt.Sprintf("==> Error: %s %s\n", d.path, err.Error()))
 	}
 }
 
+// logPanic will panic with the error if it's present
 func logPanic(err error) {
 	if err != nil {
 		log.Panic(err)
 	}
 }
 
+// String method for the flag parsing
 func (dirs *allDirectories) String() string {
 	return "string"
+}
+
+// getColorIndex will return the index of the color in the graph
+// by scaling the maximum to len(colors)
+func getColorIndex(value int, maxValue int) int {
+	scale := (13 / float64(maxValue))
+	return int((float64(value) * scale)) + 1 // this will skip the first value
 }
 
 func (dirs *allDirectories) Set(value string) error {
