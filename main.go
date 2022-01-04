@@ -33,9 +33,8 @@ var (
 	// Colors for the terminal
 	colors = []string{
 		"\033[0m",  // Reset
-		"\033[1m",  // Bold
-		"\033[97m", // White
 		"\033[90m", // DarkGray
+		"\033[97m", // White
 		"\033[34m", // Blue
 		"\033[37m", // LightGray
 		"\033[94m", // LightBlue
@@ -97,7 +96,7 @@ func getDir(path string) *directory {
 }
 
 func getColorIndex(value int, maxValue int) int {
-	scale := (17 / float64(maxValue))
+	scale := (16 / float64(maxValue))
 	return int((float64(value) * scale) - 1)
 }
 
