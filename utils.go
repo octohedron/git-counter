@@ -35,9 +35,9 @@ func printCommand(cmd *exec.Cmd) {
 	fmt.Printf("==> Executing: %s\n", strings.Join(cmd.Args, " "))
 }
 
-func logError(err error) {
+func logError(err error, d *directory) {
 	if err != nil {
-		os.Stderr.WriteString(fmt.Sprintf("==> Error: %s\n", err.Error()))
+		os.Stderr.WriteString(fmt.Sprintf("==> Error: %s %s\n", d.path, err.Error()))
 	}
 }
 

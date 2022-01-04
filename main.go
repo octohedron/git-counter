@@ -18,21 +18,27 @@ import (
 )
 
 const (
+	// These are used for printing the instructions
 	totalCols     = 60
 	padding       = 10
 	colsNoPadding = totalCols - (padding * 2)
 )
 
 var (
+	// Used for parsing the directory flags
 	flagDirectories allDirectories
-	author          string
+	// Author is a global variable to avoid passing it to the
+	// getDir function
+	author string
 )
 
+// Used for parsing the directory flags
 type allDirectories []string
 
 type directory struct {
 	gitCommand    string
-	dayilyCommits map[int]int
+	hourlyCommits map[int]int
+	path          string
 }
 
 func init() {
@@ -43,37 +49,42 @@ func init() {
 		printUsage()
 		os.Exit(0)
 	}
-	// add author to the git command if present
+	// Add author to the git command if present
 	if author != "" {
 		author = fmt.Sprintf("--author='%s'", author)
 	}
 }
 
+// addDirectoryCommits adds the commits of each github project
+// to the directory
 func (d *directory) addDirectoryCommits(outs *bytes.Buffer) {
 	scanner := bufio.NewScanner(outs)
 	for scanner.Scan() {
 		v, err := strconv.Atoi(scanner.Text())
 		logPanic(err)
-		d.dayilyCommits[v]++
+		d.hourlyCommits[v]++
 	}
 }
 
-func getDir(path string) directory {
-	return directory{
-		dayilyCommits: get24HourMap(),
+// getDir initializes a directory and returns a pointer
+func getDir(path string) *directory {
+	return &directory{
+		hourlyCommits: get24HourMap(),
 		gitCommand: fmt.Sprintf("git -C %s log ", path) +
 			author + ` --all --format='%ad' --date='format:%H'`,
+		path: path,
 	}
 }
 
+// This will print the graph in the terminal after collecting the commits
 func showResults(results map[int]int) {
+	// For showing the results starting at 0 to 23h
 	var keys []int
 	for k := range results {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
-	maxCommits := 0
-	totalCommits := 0
+	maxCommits, totalCommits := 0, 0
 	for _, k := range keys {
 		if results[k] > maxCommits {
 			maxCommits = results[k]
@@ -92,33 +103,42 @@ func showResults(results map[int]int) {
 	}
 }
 
+// This will call the git command and parse the commit
 func (d *directory) parseDir(c chan map[int]int) {
 	cmd := exec.Command("sh", "-c", d.gitCommand)
 	cmdOutput := &bytes.Buffer{}
 	cmd.Stdout = cmdOutput
 	printCommand(cmd)
 	err := cmd.Run()
-	logError(err)
+	logError(err, d)
 	d.addDirectoryCommits(cmdOutput)
-	c <- d.dayilyCommits
+	c <- d.hourlyCommits
 }
 
 func main() {
 	start := time.Now()
 	projects := 0
 	c := make(chan map[int]int)
-	// For each directory
+	// For each directory in the flags
 	for _, v := range flagDirectories {
-		gitFolders, err := ioutil.ReadDir(v)
+		projectFolders, err := ioutil.ReadDir(v)
 		logPanic(err)
-		for _, f := range gitFolders {
-			dir := getDir(v + "/" + f.Name())
-			go dir.parseDir(c)
-			projects++
+		for _, f := range projectFolders {
+			repoPath := v + "/" + f.Name()
+			// Check if it's a git project
+			if _, err := os.Stat(repoPath + "/.git"); err == nil {
+				dir := getDir(repoPath)
+				// Launch goroutine to process each folder
+				go dir.parseDir(c)
+				projects++
+			}
 		}
 	}
-	completed := 0
+	// We ensure that each result gets processed one at a time
+	// when receiving from the goroutine it will increment the total, then
+	// continue with the next one
 	total := get24HourMap()
+	completed := 0
 	for t := range c {
 		for v, k := range t {
 			total[v] += k
