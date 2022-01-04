@@ -55,6 +55,22 @@ type directory struct {
 	gitCommand    string
 	hourlyCommits map[int]int
 	path          string
+	maxCommits    int
+	totalCommits  int
+}
+
+type gitCounter struct {
+	directories  []directory
+	totalCommits int
+	maxCommits   int
+	results      map[int]int
+}
+
+type counter interface {
+	setResults()
+	setMaxCommits()
+	setTotalCommits()
+	printResults()
 }
 
 func init() {
@@ -82,6 +98,22 @@ func (d *directory) addDirectoryCommits(outs *bytes.Buffer) {
 	}
 }
 
+func (d *directory) setMaxCommits() {
+	maxCommits := 0
+	for _, hourlyCommits := range d.hourlyCommits {
+		if hourlyCommits > maxCommits {
+			d.maxCommits = hourlyCommits
+			maxCommits = hourlyCommits
+		}
+	}
+}
+
+func (d *directory) setTotalCommits() {
+	for _, hourlyCommits := range d.hourlyCommits {
+		d.totalCommits += hourlyCommits
+	}
+}
+
 // getDir initializes a directory and returns a pointer to it
 func getDir(path string) *directory {
 	return &directory{
@@ -92,50 +124,73 @@ func getDir(path string) *directory {
 	}
 }
 
-// showResults will print the graph in the terminal after collecting the commits
-func showResults(results map[int]int) {
+func (c *gitCounter) setResults() {
+	c.results = get24HourMap()
+	for _, dir := range c.directories {
+		for hour, hourlyCommits := range dir.hourlyCommits {
+			if hourlyCommits > c.maxCommits {
+				c.maxCommits = hourlyCommits
+			}
+			c.totalCommits += hourlyCommits
+			c.results[hour] += hourlyCommits
+		}
+	}
+}
+
+func (c *gitCounter) setMaxCommits() {
+	for _, d := range c.directories {
+		if c.maxCommits > d.maxCommits {
+			c.maxCommits = d.maxCommits
+		}
+	}
+}
+
+func (c *gitCounter) setTotalCommits() {
+	for _, d := range c.directories {
+		c.totalCommits += d.totalCommits
+	}
+}
+
+// printResults will print the graph in the terminal
+func (c gitCounter) printResults() {
+	fmt.Sprintf("MAX", h.Comma(int64(c.maxCommits)),
+		"TOTAL", h.Comma(int64(c.totalCommits)))
 	// For showing the results starting at 0 to 23h
 	var keys []int
-	for k := range results {
+	for k, _ := range c.results {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
-	maxCommits, totalCommits := 0, 0
 	for _, k := range keys {
-		if results[k] > maxCommits {
-			maxCommits = results[k]
-		}
-		totalCommits += results[k]
-	}
-	fmt.Println("MAX", h.Comma(int64(maxCommits)),
-		"TOTAL", h.Comma(int64(totalCommits)))
-	for _, k := range keys {
-		line := fmt.Sprintf("%3v %7v ", k, results[k])
-		line += colors[getColorIndex(results[k], maxCommits)]
+		line := fmt.Sprintf("%3v %7v ", k, c.results[k])
+		line += colors[getColorIndex(c.results[k], c.maxCommits)]
 		for n := 0; float64(n) < math.Floor(
-			float64(results[k])/float64(maxCommits)*80); n++ {
+			float64(c.results[k])/float64(c.maxCommits)*totalCols); n++ {
 			line += "█"
 		}
-		fmt.Println(line + colors[0])
+		fmt.Println(line)
 	}
 }
 
 // This will call the git command and parse the commit
-func (d *directory) parseDir(c chan map[int]int) {
+func (d directory) parseDir(c chan directory) {
 	cmd := exec.Command("sh", "-c", d.gitCommand)
 	cmdOutput := &bytes.Buffer{}
 	cmd.Stdout = cmdOutput
-	printCommand(cmd)
+	// printCommand(cmd)
 	err := cmd.Run()
-	logError(err, d)
+	logError(err, &d)
 	d.addDirectoryCommits(cmdOutput)
-	c <- d.hourlyCommits
+	d.setMaxCommits()
+	d.setTotalCommits()
+	c <- d
 }
 
 func main() {
 	start := time.Now()
 	projects := 0
-	c := make(chan map[int]int)
+	c := make(chan directory)
+	count := gitCounter{}
 	// For each directory in the flags
 	for _, v := range flagDirectories {
 		projectFolders, err := ioutil.ReadDir(v)
@@ -145,7 +200,7 @@ func main() {
 			// Check if it's a git project
 			if _, err := os.Stat(repoPath + "/.git"); err == nil {
 				dir := getDir(repoPath)
-				// Launch goroutine to process each folder
+				// Launch goroutine to process folder commits
 				go dir.parseDir(c)
 				projects++
 			}
@@ -154,17 +209,14 @@ func main() {
 	// We ensure that each result gets processed one at a time
 	// when receiving from the goroutine it will increment the total, then
 	// continue with the next one
-	total := get24HourMap()
-	completed := 0
-	for t := range c {
-		for v, k := range t {
-			total[v] += k
-		}
-		completed++
-		if completed == projects {
+	for {
+		dir := <-c
+		count.directories = append(count.directories, dir)
+		if len(count.directories) == projects {
 			break
 		}
 	}
-	showResults(total)
+	count.setResults()
+	count.printResults()
 	log.Println(time.Since(start))
 }
