@@ -78,20 +78,6 @@ type dirHandler interface {
 	Stat(name string) (fs.FileInfo, error)
 }
 
-func init() {
-	flag.Var(&flagDirectories, "dir", "flagDirectories")
-	flag.StringVar(&author, "author", "", "a string")
-	flag.Parse()
-	if len(flagDirectories) < 1 {
-		printUsage()
-		os.Exit(0)
-	}
-	// Add author to the git command if present
-	if author != "" {
-		author = fmt.Sprintf("--author='%s'", author)
-	}
-}
-
 func (i ioHandler) ReadDir(path string) ([]fs.FileInfo, error) {
 	return ioutil.ReadDir(path)
 }
@@ -219,8 +205,23 @@ func loadDirectories(h dirHandler, directories []string) (*commitCounter, error)
 	return &counter, nil
 }
 
+func parseFlags() {
+	flag.Var(&flagDirectories, "dir", "flagDirectories")
+	flag.StringVar(&author, "author", "", "a string")
+	flag.Parse()
+	if len(flagDirectories) < 1 {
+		printUsage()
+		os.Exit(0)
+	}
+	// Add author to the git command if present
+	if author != "" {
+		author = fmt.Sprintf("--author='%s'", author)
+	}
+}
+
 func main() {
 	start := time.Now()
+	parseFlags()
 	c := make(chan int)
 	ioDirHandler := ioHandler{}
 	projects, err := loadDirectories(ioDirHandler, flagDirectories)
