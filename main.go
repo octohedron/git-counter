@@ -62,34 +62,20 @@ type directory struct {
 	gitCommand    string
 	path          string
 	hourlyCommits map[int]int // hour of day to amount of commits
-	dirStats                  // embedded field
+	dirStats                  // embedded type
 }
 
 type commitCounter struct {
 	directories []directory
 	results     map[int]int // hour of day to amount of commits
-	dirStats                // embedded field
-}
-
-type counter interface {
-	setResults()
-	setMaxCommits()
-	setTotalCommits()
-	printResults()
+	dirStats                // embedded type
 }
 
 type ioHandler struct{}
+
 type dirHandler interface {
 	ReadDir(string) ([]fs.FileInfo, error)
 	Stat(name string) (fs.FileInfo, error)
-}
-
-func (i ioHandler) ReadDir(path string) ([]fs.FileInfo, error) {
-	return ioutil.ReadDir(path)
-}
-
-func (i ioHandler) Stat(path string) (fs.FileInfo, error) {
-	return os.Stat(path)
 }
 
 func init() {
@@ -104,6 +90,14 @@ func init() {
 	if author != "" {
 		author = fmt.Sprintf("--author='%s'", author)
 	}
+}
+
+func (i ioHandler) ReadDir(path string) ([]fs.FileInfo, error) {
+	return ioutil.ReadDir(path)
+}
+
+func (i ioHandler) Stat(path string) (fs.FileInfo, error) {
+	return os.Stat(path)
 }
 
 // addDirectoryCommits adds the commits of each github project
@@ -190,8 +184,8 @@ func (c commitCounter) printResults() {
 	}
 }
 
-// This will call the git command and parse the commit
-func (d directory) parseDir(c chan int) {
+// This will call the git command, parse the commit and set the stats
+func (d directory) processDir(c chan int) {
 	cmd := exec.Command("sh", "-c", d.gitCommand)
 	cmdOutput := &bytes.Buffer{}
 	cmd.Stdout = cmdOutput
@@ -205,21 +199,20 @@ func (d directory) parseDir(c chan int) {
 }
 
 func loadDirectories(h dirHandler, directories []string) (*commitCounter, error) {
-	projects := 0
 	counter := commitCounter{}
 	for _, path := range directories {
-		projectFolders, err := h.ReadDir(path)
+		// files can be files or directories
+		files, err := h.ReadDir(path)
 		if err != nil {
 			return nil, err
 		}
-		for _, f := range projectFolders {
-			repoPath := path + "/" + f.Name()
-			gitPath := repoPath + "/.git"
-			// Check if it's a git project
+		for _, f := range files {
+			gitPath := path + "/" + f.Name() + "/.git"
+			// Check if the .git folder is present (is a git project)
 			if _, err := h.Stat(gitPath); err == nil {
+				// Initialize a directory
 				dir := getDir(gitPath)
 				counter.directories = append(counter.directories, *dir)
-				projects++
 			}
 		}
 	}
@@ -234,11 +227,9 @@ func main() {
 	logPanic(err)
 	for _, dir := range projects.directories {
 		// Launch goroutine to process folder commits
-		go dir.parseDir(c)
+		go dir.processDir(c)
 	}
-	// We ensure that each result gets processed one at a time
-	// when receiving from the goroutine it will increment the total, then
-	// continue with the next one
+	// We ensure that each result gets processed separately
 	processed := 0
 	for {
 		// Receive from the channel
