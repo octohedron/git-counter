@@ -5,7 +5,7 @@ import (
 	"bytes"
 	"flag"
 	"fmt"
-	"io/ioutil"
+	"io/fs"
 	"log"
 	"math"
 	"os"
@@ -13,6 +13,8 @@ import (
 	"sort"
 	"strconv"
 	"time"
+
+	"io/ioutil"
 
 	h "github.com/dustin/go-humanize"
 )
@@ -71,6 +73,15 @@ type counter interface {
 	setMaxCommits()
 	setTotalCommits()
 	printResults()
+}
+
+type ioHandler struct{}
+type handler interface {
+	ReadDir(string) ([]fs.FileInfo, error)
+}
+
+func (i ioHandler) ReadDir(path string) ([]fs.FileInfo, error) {
+	return ioutil.ReadDir(path)
 }
 
 func init() {
@@ -153,11 +164,11 @@ func (c *gitCounter) setTotalCommits() {
 
 // printResults will print the graph in the terminal
 func (c gitCounter) printResults() {
-	fmt.Sprintf("MAX", h.Comma(int64(c.maxCommits)),
+	fmt.Println("MAX", h.Comma(int64(c.maxCommits)),
 		"TOTAL", h.Comma(int64(c.totalCommits)))
 	// For showing the results starting at 0 to 23h
 	var keys []int
-	for k, _ := range c.results {
+	for k := range c.results {
 		keys = append(keys, k)
 	}
 	sort.Ints(keys)
@@ -168,55 +179,68 @@ func (c gitCounter) printResults() {
 			float64(c.results[k])/float64(c.maxCommits)*totalCols); n++ {
 			line += "█"
 		}
+		line += colors[0] // reset color
 		fmt.Println(line)
 	}
 }
 
 // This will call the git command and parse the commit
-func (d directory) parseDir(c chan directory) {
+func (d directory) parseDir(c chan int) {
 	cmd := exec.Command("sh", "-c", d.gitCommand)
 	cmdOutput := &bytes.Buffer{}
 	cmd.Stdout = cmdOutput
-	// printCommand(cmd)
+	printCommand(cmd)
 	err := cmd.Run()
 	logError(err, &d)
 	d.addDirectoryCommits(cmdOutput)
 	d.setMaxCommits()
 	d.setTotalCommits()
-	c <- d
+	c <- 1
 }
 
-func main() {
-	start := time.Now()
+func loadDirectories(h handler, directories allDirectories) (gitCounter, error) {
 	projects := 0
-	c := make(chan directory)
-	count := gitCounter{}
-	// For each directory in the flags
-	for _, v := range flagDirectories {
-		projectFolders, err := ioutil.ReadDir(v)
-		logPanic(err)
+	counter := gitCounter{}
+	for _, path := range directories {
+		projectFolders, err := h.ReadDir(path)
+		if err != nil {
+			return counter, nil
+		}
 		for _, f := range projectFolders {
-			repoPath := v + "/" + f.Name()
+			repoPath := path + "/" + f.Name()
+			gitPath := repoPath + "/.git"
 			// Check if it's a git project
-			if _, err := os.Stat(repoPath + "/.git"); err == nil {
-				dir := getDir(repoPath)
-				// Launch goroutine to process folder commits
-				go dir.parseDir(c)
+			if _, err := os.Stat(gitPath); err == nil {
+				dir := getDir(gitPath)
+				counter.directories = append(counter.directories, *dir)
 				projects++
 			}
 		}
 	}
+	return counter, nil
+}
+
+func main() {
+	start := time.Now()
+	c := make(chan int)
+	handler := ioHandler{}
+	projects, err := loadDirectories(handler, flagDirectories)
+	logPanic(err)
+	for _, dir := range projects.directories {
+		// Launch goroutine to process folder commits
+		go dir.parseDir(c)
+	}
 	// We ensure that each result gets processed one at a time
 	// when receiving from the goroutine it will increment the total, then
 	// continue with the next one
+	processed := 0
 	for {
-		dir := <-c
-		count.directories = append(count.directories, dir)
-		if len(count.directories) == projects {
+		processed += <-c
+		if processed == len(projects.directories) {
 			break
 		}
 	}
-	count.setResults()
-	count.printResults()
+	projects.setResults()
+	projects.printResults()
 	log.Println(time.Since(start))
 }
