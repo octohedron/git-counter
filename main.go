@@ -53,19 +53,22 @@ var (
 // Used for parsing the directory flags
 type allDirectories []string
 
-type directory struct {
-	gitCommand    string
-	hourlyCommits map[int]int
-	path          string
-	maxCommits    int
-	totalCommits  int
+type dirStats struct {
+	maxCommits   int
+	totalCommits int
 }
 
-type gitCounter struct {
-	directories  []directory
-	totalCommits int
-	maxCommits   int
-	results      map[int]int
+type directory struct {
+	gitCommand    string
+	path          string
+	hourlyCommits map[int]int // hour of day to amount of commits
+	dirStats                  // embedded field
+}
+
+type commitCounter struct {
+	directories []directory
+	results     map[int]int // hour of day to amount of commits
+	dirStats                // embedded field
 }
 
 type counter interface {
@@ -140,7 +143,7 @@ func getDir(path string) *directory {
 	}
 }
 
-func (c *gitCounter) setResults() {
+func (c *commitCounter) setResults() {
 	c.results = get24HourMap()
 	for _, dir := range c.directories {
 		for hour, hourlyCommits := range dir.hourlyCommits {
@@ -150,7 +153,7 @@ func (c *gitCounter) setResults() {
 	}
 }
 
-func (c *gitCounter) setMaxCommits() {
+func (c *commitCounter) setMaxCommits() {
 	for _, hourlyCommits := range c.results {
 		if hourlyCommits > c.maxCommits {
 			c.maxCommits = hourlyCommits
@@ -158,14 +161,14 @@ func (c *gitCounter) setMaxCommits() {
 	}
 }
 
-func (c *gitCounter) setTotalCommits() {
+func (c *commitCounter) setTotalCommits() {
 	for _, d := range c.directories {
 		c.totalCommits += d.totalCommits
 	}
 }
 
 // printResults will print the graph in the terminal
-func (c gitCounter) printResults() {
+func (c commitCounter) printResults() {
 	fmt.Println(
 		"MAX", h.Comma(int64(c.maxCommits)),
 		"TOTAL", h.Comma(int64(c.totalCommits)))
@@ -201,13 +204,13 @@ func (d directory) parseDir(c chan int) {
 	c <- 1
 }
 
-func loadDirectories(h dirHandler, directories []string) (gitCounter, error) {
+func loadDirectories(h dirHandler, directories []string) (*commitCounter, error) {
 	projects := 0
-	counter := gitCounter{}
+	counter := commitCounter{}
 	for _, path := range directories {
 		projectFolders, err := h.ReadDir(path)
 		if err != nil {
-			return counter, nil
+			return nil, err
 		}
 		for _, f := range projectFolders {
 			repoPath := path + "/" + f.Name()
@@ -220,7 +223,7 @@ func loadDirectories(h dirHandler, directories []string) (gitCounter, error) {
 			}
 		}
 	}
-	return counter, nil
+	return &counter, nil
 }
 
 func main() {
@@ -238,6 +241,7 @@ func main() {
 	// continue with the next one
 	processed := 0
 	for {
+		// Receive from the channel
 		processed += <-c
 		if processed == len(projects.directories) {
 			break
