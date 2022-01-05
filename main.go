@@ -76,12 +76,17 @@ type counter interface {
 }
 
 type ioHandler struct{}
-type handler interface {
+type dirHandler interface {
 	ReadDir(string) ([]fs.FileInfo, error)
+	Stat(name string) (fs.FileInfo, error)
 }
 
 func (i ioHandler) ReadDir(path string) ([]fs.FileInfo, error) {
 	return ioutil.ReadDir(path)
+}
+
+func (i ioHandler) Stat(path string) (fs.FileInfo, error) {
+	return os.Stat(path)
 }
 
 func init() {
@@ -161,7 +166,8 @@ func (c *gitCounter) setTotalCommits() {
 
 // printResults will print the graph in the terminal
 func (c gitCounter) printResults() {
-	fmt.Println("MAX", h.Comma(int64(c.maxCommits)),
+	fmt.Println(
+		"MAX", h.Comma(int64(c.maxCommits)),
 		"TOTAL", h.Comma(int64(c.totalCommits)))
 	// For showing the results starting at 0 to 23h
 	var keys []int
@@ -195,7 +201,7 @@ func (d directory) parseDir(c chan int) {
 	c <- 1
 }
 
-func loadDirectories(h handler, directories []string) (gitCounter, error) {
+func loadDirectories(h dirHandler, directories []string) (gitCounter, error) {
 	projects := 0
 	counter := gitCounter{}
 	for _, path := range directories {
@@ -207,7 +213,7 @@ func loadDirectories(h handler, directories []string) (gitCounter, error) {
 			repoPath := path + "/" + f.Name()
 			gitPath := repoPath + "/.git"
 			// Check if it's a git project
-			if _, err := os.Stat(gitPath); err == nil {
+			if _, err := h.Stat(gitPath); err == nil {
 				dir := getDir(gitPath)
 				counter.directories = append(counter.directories, *dir)
 				projects++
@@ -220,8 +226,8 @@ func loadDirectories(h handler, directories []string) (gitCounter, error) {
 func main() {
 	start := time.Now()
 	c := make(chan int)
-	handler := ioHandler{}
-	projects, err := loadDirectories(handler, flagDirectories)
+	ioDirHandler := ioHandler{}
+	projects, err := loadDirectories(ioDirHandler, flagDirectories)
 	logPanic(err)
 	for _, dir := range projects.directories {
 		// Launch goroutine to process folder commits
