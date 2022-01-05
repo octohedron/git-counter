@@ -139,19 +139,16 @@ func (c *gitCounter) setResults() {
 	c.results = get24HourMap()
 	for _, dir := range c.directories {
 		for hour, hourlyCommits := range dir.hourlyCommits {
-			if hourlyCommits > c.maxCommits {
-				c.maxCommits = hourlyCommits
-			}
-			c.totalCommits += hourlyCommits
 			c.results[hour] += hourlyCommits
+			c.totalCommits += hourlyCommits
 		}
 	}
 }
 
 func (c *gitCounter) setMaxCommits() {
-	for _, d := range c.directories {
-		if c.maxCommits > d.maxCommits {
-			c.maxCommits = d.maxCommits
+	for _, hourlyCommits := range c.results {
+		if hourlyCommits > c.maxCommits {
+			c.maxCommits = hourlyCommits
 		}
 	}
 }
@@ -241,6 +238,8 @@ func main() {
 		}
 	}
 	projects.setResults()
+	projects.setMaxCommits()
+	projects.setTotalCommits()
 	projects.printResults()
 	log.Println(time.Since(start))
 }

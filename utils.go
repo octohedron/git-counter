@@ -62,7 +62,7 @@ func (dirs *allDirectories) String() string {
 // getColorIndex will return the index of the color in the graph
 // by scaling the maximum to len(colors)
 func getColorIndex(value int, maxValue int) int {
-	scale := (float64(len(colors)-7) / float64(maxValue))
+	scale := (float64(len(colors)-2) / float64(maxValue))
 	return int((float64(value) * scale)) + 1 // this will skip the first value
 }
 
