@@ -195,7 +195,7 @@ func (d directory) parseDir(c chan int) {
 	c <- 1
 }
 
-func loadDirectories(h handler, directories allDirectories) (gitCounter, error) {
+func loadDirectories(h handler, directories []string) (gitCounter, error) {
 	projects := 0
 	counter := gitCounter{}
 	for _, path := range directories {
