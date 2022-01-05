@@ -20,7 +20,7 @@ import (
 )
 
 const (
-	// Used for printing the instructions
+	// Used for the output
 	totalCols     = 80
 	padding       = 10
 	colsNoPadding = totalCols - (padding * 2)
