@@ -53,7 +53,7 @@ var (
 // Used for parsing the directory flags
 type allDirectories []string
 
-type dirStats struct {
+type stats struct {
 	maxCommits   int
 	totalCommits int
 }
@@ -62,13 +62,13 @@ type directory struct {
 	gitCommand    string
 	path          string
 	hourlyCommits map[int]int // hour of day to amount of commits
-	dirStats                  // embedded type
+	stats                     // embedded type
 }
 
 type commitCounter struct {
 	directories []directory
 	results     map[int]int // hour of day to amount of commits
-	dirStats                // embedded type
+	stats                   // embedded type
 }
 
 type ioHandler struct{}
