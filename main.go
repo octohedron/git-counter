@@ -10,7 +10,6 @@ import (
 	"math"
 	"os"
 	"os/exec"
-	"sort"
 	"strconv"
 	"time"
 
@@ -150,17 +149,11 @@ func (c commitCounter) printResults() {
 	fmt.Println(
 		"MAX", h.Comma(int64(c.maxCommits)),
 		"TOTAL", h.Comma(int64(c.totalCommits)))
-	// For showing the results starting at 0 to 23h
-	var keys []int
-	for k := range c.results {
-		keys = append(keys, k)
-	}
-	sort.Ints(keys)
-	for _, k := range keys {
-		line := fmt.Sprintf("%3v %7v ", k, c.results[k])
-		line += colors[getColorIndex(c.results[k], c.maxCommits)]
+	for i := 0; i < 23; i++ {
+		line := fmt.Sprintf("%3v %7v ", i, c.results[i])
+		line += colors[getColorIndex(c.results[i], c.maxCommits)]
 		for n := 0; float64(n) < math.Floor(
-			float64(c.results[k])/float64(c.maxCommits)*totalCols); n++ {
+			float64(c.results[i])/float64(c.maxCommits)*totalCols); n++ {
 			line += "█"
 		}
 		line += colors[0] // reset color
