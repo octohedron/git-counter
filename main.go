@@ -98,11 +98,9 @@ func (d *directory) addDirectoryCommits(outs *bytes.Buffer) {
 }
 
 func (d *directory) setMaxCommits() {
-	maxCommits := 0
 	for _, hourlyCommits := range d.hourlyCommits {
-		if hourlyCommits > maxCommits {
+		if hourlyCommits > d.maxCommits {
 			d.maxCommits = hourlyCommits
-			maxCommits = hourlyCommits
 		}
 	}
 }
