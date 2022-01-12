@@ -39,13 +39,40 @@ func (i mockIoHandler) Stat(path string) (fs.FileInfo, error) {
 	return fileInfoMock{}, nil
 }
 
+func tFatal(err error, msg string, t *testing.T) {
+	if err != nil {
+		t.Fatal(msg)
+	}
+}
+
 func TestLoadDirectories(t *testing.T) {
 	ioDirHandler := mockIoHandler{}
 	projects, err := loadDirectories(ioDirHandler, mockDirs)
-	if err != nil {
-		t.Fatal("Error loading dir")
-	}
+	tFatal(err, "Error loading dir", t)
 	if len(projects.directories) < 1 {
-		t.Fatal("Error, should be empty")
+		t.Fatal("Error, shouldn't be empty")
+	}
+
+	type test struct {
+		input []string
+		want  int
+	}
+
+	// Table driven test, each folder has 10 files as implemented in
+	// our mock ReadDir() which adds 10 files to each folder
+	tests := []test{
+		{input: []string{"folder-0"}, want: 10},
+		{input: []string{"folder-0", "folder-1"}, want: 20},
+		{input: []string{"folder-0", "folder-1", "folder-2"}, want: 30},
+	}
+
+	for _, v := range tests {
+		ps, err := loadDirectories(ioDirHandler, v.input)
+		tFatal(err, "Error loading dir", t)
+		if len(ps.directories) != v.want {
+			t.Fatal(
+				"Error, unexpected value, have",
+				len(ps.directories), "want", v.want)
+		}
 	}
 }
